@@ -1,0 +1,72 @@
+class Optitrack:
+
+    def __init__(self):
+        self.position = [0,0,0]
+        self.rotation = []
+        self.prevPosition = []
+        self.prevRotation = []
+        self.states = []
+        self.prevStates =[]
+        self.rates = []
+        self.forPID = [0,0,0,0,0,0,0,0]
+
+    def GetValues(self):
+        return self.forPID
+
+    # This is a callback function that gets connected to the NatNet client and called once per mocap frame.
+    def receiveNewFrame( frameNumber, markerSetCount, unlabeledMarkersCount, rigidBodyCount, skeletonCount,
+                        labeledMarkerCount, timecode, timecodeSub, timestamp, isRecording, trackedModelsChanged ):
+        print( "Received frame", frameNumber )
+
+    # This is a callback function that gets connected to the NatNet client. It is called once per rigid body per frame
+    def receiveRigidBodyFrame( id, position, rotation ):
+
+        self.prevPosition = self.position
+        self.prevRotation = self.rotation
+        self.prevStates = self.states
+        self.position = position
+        self.rotation = rotation
+        posRates = [0]
+        rotRates = [0]]
+        #Define attitude psi, theta, phi
+        phi=math.atan2(rotation[2]*rotation[3]+rotation[0]*rotation[1], rotation[0]^2 +rotation[3]^2-0.5)
+        theta=math.atan2(rotation[0]*rotation[2]-rotation[1]*rotation[3],
+                  ((rotation[0]^2+rotation[1]^2-0.5)^2+(rotation[0]*rotation[2]+rotation[0]*rotation[3])^2)^0.50)
+        psi=math.atan2(rotation[1]*rotation[2]+rotation[0]*rotation[3], rotation[0]^2 +rotation[1]^2-0.5)
+
+#### NEW STUFFF FOR KEVIN
+
+        #need to define frame rate frequency (s)
+        #define rates via iteration
+        posRates = (self.position-self.prevPosition)/frameHz
+        rotRates = (self.rotation-self.prevRotation)/frameHz
+        #Define DCM
+        DCM=[math.cos(theta)*math.cos(psi), math.cos(theta)*math.sin(psi), -math.sin(theta);
+            math.sin(theta)*math.sin(phi)*math.cos(psi)-math.sin(psi)*math.cos(phi),
+            math.sin(psi)*math.sin(theta)*math.sin(phi)+math.cos(psi)*math.cos(phi), math.sin(phi)*math.cos(theta);
+            math.sin(theta)*math.cos(phi)*math.cos(psi)+math.sin(psi)*math.sin(phi),
+            math.sin(theta)*math.sin(phi)*math.cos(phi)-math.cos(psi)*math.sin(theta),
+            math.cos(phi)*math.cos(theta)]
+        #Define body velocities
+        [u;v;w]=DCM*[posRates]
+        #define body angular velocities
+        convertquat=[-rotation[1], rotation[0], rotation[3], -rotation[2];
+                    -rotation[2], -rotation[3], rotation[0], rotation[1];
+                    -rotation[3], rotation[2], -rotation[1], rotation[0]]
+        [p;q;r]=2*convertmat*rotRates
+        #define state and state rate vector
+        self.states=[u;v;w;p;q;r;phi;theta;psi;position[0];position[1];position[2]]
+        self.rates=(self.states-self.prevStates)/frameHz
+
+        #correct state rates
+        convertrot=[1, math.sin(phi)*math.tan(theta), math.cos(phi)*math.tan(theta);
+                    0, math.cos(phi), -math.sin(phi); 0, math.sin(phi)/math.cos(theta),
+                    math.cos(phi)/math.cos(theta)]
+        self.rates[7;8;9]=convertrot*[p;q;r
+
+#### END OF NEW STUFF
+
+
+
+        print("Received frame for rigid body", id )
+        print("Position: {} Rotation: {}".format(position,rotation))

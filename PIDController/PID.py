@@ -1,0 +1,190 @@
+import PID_Controller
+import socket
+import pickle
+import threading
+import FilteredAverage
+import numpy
+
+class PID:
+    # Discrete PID control
+    def __init__(self, target, frames, position, rotation, eulerAngles, gain, Size = [1,1,2*numpy.pi,1]):
+        self.Size = Size
+        dt,Position,PositionRate,Rotation,RotationRate,Euler,EulerRate = FilteredAverage.FilteredAverage(frames, position, rotation, eulerAngles)
+##        self.target = valuesrc
+        self.sensor = [Position[0],Position[1],Position[2],Euler[2],PositionRate[0],PositionRate[1],PositionRate[2],EulerRate[2]]
+        self.target = target
+##        self.sensor = sensor
+        self.gain = gain
+        self.Psi_T_List = [self.target[3],self.target[3],self.target[3]]
+        self.Psi_S_List = [self.sensor[3],self.sensor[3],self.sensor[3]]
+##        print(self.Psi_S_List)
+        self.X   = PID_Controller.PID_Controller(3.0,0.4,0.8,0,0)
+        self.Y   = PID_Controller.PID_Controller(3.0,0.4,0.8,0,0)
+        self.Z   = PID_Controller.PID_Controller(3.0,0.4,0.8,0,0)
+        self.Psi = PID_Controller.PID_Controller(3.0,0.4,0.8,0,0)
+        self.u   = PID_Controller.PID_Controller(3.0,0.4,0.8,0,0)
+        self.v   = PID_Controller.PID_Controller(3.0,0.4,0.8,0,0)
+        self.w   = PID_Controller.PID_Controller(3.0,0.4,0.8,0,0)
+        self.r   = PID_Controller.PID_Controller(3.0,0.4,0.8,0,0)
+
+        """
+        TCP_IP = 'localhost'
+        TCP_PORT = 5005
+        self.BUFFER_SIZE = 1024
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s.connect((TCP_IP, TCP_PORT))
+        thread = threading.Thread(target=self.receive_gain)
+        thread.start()
+
+    def receive_gain(self):
+        while(1):
+            data = self.s.recv(self.BUFFER_SIZE)
+            data = pickle.loads(data)
+            self.gain = data"""
+
+    def run(self, valuesrc, frames, position, rotation, eulerAngles):
+
+        if valuesrc[4] > 0.9:
+            ControlInput = [valuesrc[1]*self.Size[0],valuesrc[2]*self.Size[1],valuesrc[3]*self.Size[2],valuesrc[5]*self.Size[3]]
+        elif valuesrc[4] < 0.1:
+            ControlInput = [valuesrc[1],valuesrc[2],valuesrc[3],valuesrc[5]]
+        else:
+            ControlInput = [valuesrc[1]-0.5,valuesrc[2]-0.5,valuesrc[3]-0.5,valuesrc[5]-0.5]
+##                print(position)
+##        valuesrc = [X_target,Y_target,Z_target,Psi_target]
+##        position = [X_room_frame,Y_room_frame,Z_room_frame]
+##        eulerAngles = [Phi_inertial,Theta_inertial,Psi_inertial]
+        dt,Position,PositionRate,Rotation,RotationRate,Euler,EulerRate = FilteredAverage.FilteredAverage(frames, position, rotation, eulerAngles)
+##        print([valuesrc,Position])
+        X_Vector = valuesrc[0] - Position[0]
+        Y_Vector = valuesrc[1] - Position[1]
+        X_Heading = numpy.sin(numpy.arctan2(Y_Vector,X_Vector)-Euler[2])*numpy.sqrt(X_Vector*X_Vector+Y_Vector*Y_Vector)
+        Y_Heading = numpy.cos(numpy.arctan2(Y_Vector,X_Vector)-Euler[2])*numpy.sqrt(X_Vector*X_Vector+Y_Vector*Y_Vector)
+        X_HeadingRate = numpy.sin(numpy.arctan2(PositionRate[1],PositionRate[0])-Euler[2])*numpy.sqrt(PositionRate[1]*PositionRate[1]+PositionRate[0]*PositionRate[0])
+        Y_HeadingRate = numpy.cos(numpy.arctan2(PositionRate[1],PositionRate[0])-Euler[2])*numpy.sqrt(PositionRate[1]*PositionRate[1]+PositionRate[0]*PositionRate[0])
+        self.target = [0,0,ControlInput[2],ControlInput[3]]
+        self.sensor = [X_Heading,Y_Heading,Position[2],Euler[2],X_HeadingRate,Y_HeadingRate,PositionRate[2],EulerRate[2]]
+
+        # Target Values and Sensor Values from Communication
+        X_Target_Value = self.target[0]
+        Y_Target_Value = self.target[1]
+        Z_Target_Value = self.target[2]
+        self.Psi_T_List = [self.Psi_T_List[1],self.Psi_T_List[2],self.target[3]]
+##        self.Psi_T_List.append(self.target[3])
+##        print(self.Psi_T_List)
+        numpy.unwrap(self.Psi_T_List)
+##        print(self.Psi_T_List)
+
+        Psi_Target_Value = self.Psi_T_List[2]
+##        T_Target_Value = 0.5
+
+##        print(self.sensor)
+        X_Sensor_Value = self.sensor[0]
+        Y_Sensor_Value = self.sensor[1]
+        Z_Sensor_Value = self.sensor[2]
+        self.Psi_S_List = [self.Psi_S_List[1],self.Psi_S_List[2],self.target[3]]
+##        self.Psi_S_List.append(self.sensor[3])
+        numpy.unwrap(self.Psi_S_List)
+        Psi_Sensor_Value = self.Psi_S_List[2]
+        u_Sensor_Value = self.sensor[4]
+        v_Sensor_Value = self.sensor[5]
+        w_Sensor_Value = self.sensor[6]
+        r_Sensor_Value = self.sensor[7]
+
+        # Gain Values from Tuning UI
+        G = [x * dt for x in self.gain[0:40]]
+##        print(self.gain[0:40])
+        KP = G[0:8]
+        KI = G[8:16]
+        KD = G[16:24]
+        Imax = G[24:32]
+        Imin = G[32:40]
+
+##        print(KP)
+
+        self.X.setPoint(X_Target_Value)
+        self.Y.setPoint(Y_Target_Value)
+        self.Z.setPoint(Z_Target_Value)
+        self.Psi.setPoint(Psi_Target_Value)
+
+##        print(X_Sensor_Value,KP[0],KI[0],KD[0],Imax[0],Imin[0])
+        u_Target_Value = self.X.update(X_Sensor_Value,KP[0],KI[0],KD[0],Imax[0],Imin[0])
+        v_Target_Value = self.Y.update(Y_Sensor_Value,KP[1],KI[1],KD[1],Imax[1],Imin[1])
+        w_Target_Value = self.Z.update(Z_Sensor_Value,KP[2],KI[2],KD[2],Imax[2],Imin[2])
+        r_Target_Value = self.Psi.update(Psi_Sensor_Value,KP[3],KI[3],KD[3],Imax[3],Imin[3])
+
+        if valuesrc[4] > 0.9:
+            self.u.setPoint(u_Target_Value)
+            self.v.setPoint(v_Target_Value)
+            self.w.setPoint(w_Target_Value)
+            self.r.setPoint(r_Target_Value)
+        elif valuesrc[4] < 0.1:
+            self.u.setPoint(ControlInput[1])
+            self.v.setPoint(ControlInput[0])
+            self.w.setPoint(ControlInput[3])
+            self.r.setPoint(ControlInput[2])
+        else:
+            self.u.setPoint(ControlInput[1])
+            self.v.setPoint(ControlInput[0])
+            self.w.setPoint(ControlInput[3])
+            self.r.setPoint(ControlInput[2])
+
+
+        u_Control = self.u.update(u_Sensor_Value,KP[4],KI[4],KD[4],Imax[4],Imin[4])
+        v_Control = self.v.update(v_Sensor_Value,KP[5],KI[5],KD[5],Imax[5],Imin[5])
+        w_Control = self.w.update(w_Sensor_Value,KP[6],KI[6],KD[6],Imax[6],Imin[6])
+        r_Control = self.r.update(r_Sensor_Value,KP[7],KI[7],KD[7],Imax[7],Imin[7])
+
+        Aile_pin = v_Control + 0.5
+
+##        # Saturation
+##        if Aile_pin/1000 >= 1.0 :
+##            Aile_pin = 1.0
+##        elif Aile_pin/1000 <= -1.0 :
+##            Aile_pin = 0.0
+
+        Elev_pin = u_Control + 0.5
+
+##        # Saturation
+##        if Elev_pin/1000 >= 1.0 :
+##           Elev_pin = 1.0
+##        elif Elev_pin/1000 <= -1.0 :
+##            Elev_pin = 0.0
+
+        Rudd_pin = r_Control + 0.5
+
+##        # Saturation
+##        if Rudd_pin/1000 >= 1.0 :
+##            Rudd_pin = 1.0
+##        elif Rudd_pin/1000 <= -1.0 :
+##            Rudd_pin = 0.0
+
+        Coll_pin = w_Control
+
+##        # Saturation
+##        if Coll_pin/1000 >= 1.0 :
+##            Coll_pin = 1.0
+##        elif Coll_pin/1000 <= -1.0 :
+##            Coll_pin = 0.0
+
+##        T_Control = self.T.update(Coll_pin,KP[8],KI[8],KD[8],Imax[8],Imin[8])
+##        Thro_pin = T_Control/1000
+##
+##        # Saturation
+##        if Thro_pin >= 1.0 :
+##            Thro_pin = 1.0
+##        elif Thro_pin <= 0.0 :
+##            Thro_pin = 0.0
+
+        ## Thro_pin = 0.9
+
+
+        if valuesrc[4] > 0.9:
+##            print([valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin])
+            return [valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin]
+        elif valuesrc[4] < 0.1:
+##            print(valuesrc)
+            return valuesrc
+        else:
+##            print([valuesrc[0],valuesrc[1],valuesrc[2],valuesrc[3],valuesrc[4],Coll_pin])
+            return [valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin]
