@@ -10,6 +10,7 @@ class PID:
     def __init__(self, target, frames, position, rotation, eulerAngles, gain, Size = [1,1,2*numpy.pi,1]):
         self.Size = Size
         dt,Position,PositionRate,Rotation,RotationRate,Euler,EulerRate = FilteredAverage.FilteredAverage(frames, position, rotation, eulerAngles)
+        
 ##        self.target = valuesrc
         self.sensor = [Position[0],Position[1],Position[2],Euler[2],PositionRate[0],PositionRate[1],PositionRate[2],EulerRate[2]]
         self.target = target
@@ -177,14 +178,21 @@ class PID:
 ##            Thro_pin = 0.0
 
         ## Thro_pin = 0.9
-
+        
 
         if valuesrc[4] > 0.9:
 ##            print([valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin])
-            return [valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin]
+            vbarVal = [valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin]
         elif valuesrc[4] < 0.1:
 ##            print(valuesrc)
-            return valuesrc
+            vbarVal = valuesrc
         else:
 ##            print([valuesrc[0],valuesrc[1],valuesrc[2],valuesrc[3],valuesrc[4],Coll_pin])
-            return [valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin]
+            vbarVal = [valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin]
+
+        sys.stdout.write(
+            "%4d, %4d, %4d, %4d, %4d, %4d--------------%4d, %4d, %4d, %4d, %4d, %4d\r"%tuple(
+            valuesrc[:6]+vbarVal[:6]))   
+        sys.stdout.flush()
+
+        return vbarVal
