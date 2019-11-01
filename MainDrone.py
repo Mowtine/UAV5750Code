@@ -247,7 +247,7 @@ if __name__ == "__main__":
                     valuesrc[:6]+vbarVal[:6]))
                 
                 sys.stdout.flush()
-            time.sleep(0.1)
+##            time.sleep(0.1)
 
     except Exception as e:
         print(e)
