@@ -114,7 +114,7 @@ class PID:
         r_Sensor_Value = self.sensor[7]
 
         # Gain Values from Tuning UI
-        G = [x*dt*250 for x in self.gain[0:40]]
+        G = [x*dt*10 for x in self.gain[0:40]]
 ##        G = self.gain[0:40]
 ##        print(self.gain[0:40])
         KP = G[0:8]
@@ -202,16 +202,16 @@ class PID:
         ## Thro_pin = 0.9
         
 #        print(Aile_pin)
-        if valuesrc[4] > 0.9:
+        if valuesrc[4] > 0.8:
 ##            print([valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin])
             vbarVal = [valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin]
-        elif valuesrc[4] < 0.1:
+        elif valuesrc[4] < 0.2:
 ##            print(valuesrc)
             vbarVal = valuesrc
         else:
 ##            print([valuesrc[0],valuesrc[1],valuesrc[2],valuesrc[3],valuesrc[4],Coll_pin])
-#            vbarVal = [valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin]
-            vbarVal = [valuesrc[0],valuesrc[1],valuesrc[2],valuesrc[3],valuesrc[4],Coll_pin]
+            vbarVal = [valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin]
+#            vbarVal = [valuesrc[0],valuesrc[1],valuesrc[2],valuesrc[3],valuesrc[4],Coll_pin]
 
 ##        sys.stdout.write(
 ##            "%4d, %4d, %4d, %4d, %4d, %4d--------------%4d, %4d, %4d, %4d, %4d, %4d\r"%tuple(

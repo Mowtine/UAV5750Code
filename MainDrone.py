@@ -60,7 +60,7 @@ class Optitrack:
         self.log = log
         self.body = int(body)
         self.inRecieve = False
-        self.logkeep = 3
+        self.logkeep = 100
 
     def GetValues(self):
         # tempframes = self.frames.copy()
@@ -86,14 +86,14 @@ class Optitrack:
                         labeledMarkerCount, timecode, timecodeSub, timestamp, isRecording, trackedModelsChanged ):
         self.frames.append([frameNumber, uptime(), trackedModelsChanged])
         self.inRecieve = True
-        #print(self.frames[-1])
+        print()
 
     # This is a callback function that gets connected to the NatNet client. It is called once per rigid body per frame
     def receiveRigidBodyFrame( self, id, position, rotation ):
 
         if self.body == id:
-            #print(position)
-            self.rotation.append([float(rotation[0].real), float(rotation[1].real), float(rotation[2].real), float(rotation[3].real)])
+#            print(position)
+            #self.rotation.append([float(rotation[0].real), float(rotation[1].real), float(rotation[2].real), float(rotation[3].real)])
             q0 = float(rotation[0].real)
             q1 = float(rotation[1].real)
             q2 = float(rotation[2].real)
@@ -104,18 +104,18 @@ class Optitrack:
 #            theta = math.atan(((q0*q2)-(q1*q3))/(((((q0*q0)+(q1*q1)-0.5)**2)+((q1*q2+q0*q3)**2))**0.5))
 #            phi = math.atan( (q2*q3+q0*q1) / ((q0*q0)+(q3*q3)-0.5) )
 #            psi = math.atan((q1*q2+q0*q3)/((q0*q0)+(q1*q1)-0.5))
-            t0 = 2.0*(q3*q0+q1*q2)
-            t1 = 1.0 - 2.0*(q0*q0+q1*q1)
-            phi = math.atan2(t0,t1)
-            t2 = 2.0*(q3*q1-q2*q0)
-            t2 = 1.0 if t2>1.0 else t2
-            t2 = -1.0 if t2<-1.0 else t2
-            theta = math.asin(t2)
+#            t0 = 2.0*(q3*q0+q1*q2)
+#            t1 = 1.0 - 2.0*(q0*q0+q1*q1)
+#            phi = math.atan2(t0,t1)
+#            t2 = 2.0*(q3*q1-q2*q0)
+#            t2 = 1.0 if t2>1.0 else t2
+#            t2 = -1.0 if t2<-1.0 else t2
+#            theta = math.asin(t2)
             t3 = 2.0*(q3*q2+q1*q0)
             t4 = 1.0 - 2.0*(q1*q1+q2*q2)
             psi = math.atan2(t3,t4)
 
-            self.eulerAngles.append([theta, psi, phi])
+            self.eulerAngles.append([0, psi, 0])
 #            print(self.eulerAngles[-1])
 
             y = position[0]
@@ -198,18 +198,21 @@ if __name__ == "__main__":
         if False:#gain:
             threads.append(gain.run())
             frames, position, rotation, eulerAngles =  states.GetValues()
-            print(frames)
-            print(position)
-            print(rotation)
-            print(eulerAngles)
+            print("frames:",frames)
+            print("positions:",position)
+            print("rotation:",rotation)
+            print("eulerangles:",eulerAngles)
             PID = PIDFile.PID(rcInputOutput.GetValues(), frames, position, rotation, eulerAngles, gain.GetValues())
         else:
             frames, position, rotation, eulerAngles =  states.GetValues()
-            print(frames)
-            print(position)
-            print(rotation)
-            print(eulerAngles)
-            PID = PIDFile.PID(rcInputOutput.GetValues(), frames, position, rotation, eulerAngles, [0.05, 0.05, 0.05, 0.05, 0.5, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 500.0, 500.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+            print("frames",frames)
+            print("position",position)
+            print("rotation",rotation)
+            print("eulerangles",eulerAngles)
+
+            gain = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            gain = [ x*10 for x in gain]
+            PID = PIDFile.PID(rcInputOutput.GetValues(), frames, position, rotation, eulerAngles, gain)
 
         #gain = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0, 0.2, 0.2, 0.2, 0.2, 0.0, 0.0, 0.0, 0.0, 0.3, 0.3, 0.3, 0.3, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
@@ -219,8 +222,8 @@ if __name__ == "__main__":
         positionT = [[0,0,0]]
         rotationT = [[0,0,0,0]]
         eulerT = [[0,0,0]]
-        logkeep = 3
-
+        logkeep = 100
+        prevtime = uptime()
 
         while running:
             valuesrc = rcInputOutput.GetValues()
@@ -231,9 +234,15 @@ if __name__ == "__main__":
 
                 sys.stdout.flush()
                 rcInputOutput.SaveValues(valuesrc)
+                #frames, position, rotation, eulerAngles = states.GetValues()
+                #print("position",position,"euler",eulerAngles)
             else:
+#                dt = uptime() - prevtime
+#                prevtime = uptime()
+#                print(dt)
                 frames, position, rotation, eulerAngles =  states.GetValues()
 
+                #print("position",position[0],"euler",eulerAngles[0][1])
                 # framesT.append([framesT[-1][0]+1,uptime(),True])
                 # positionT.append([0,0,0])
                 # rotationT.append([0,0,0,0])
@@ -258,7 +267,7 @@ if __name__ == "__main__":
                     "%4d, %4d, %4d, %4d, %4d, %4d--------------%4d, %4d, %4d, %4d, %4d, %4d\r"%tuple(
                     valuesrc[:6]+vbarVal2[:6]))
                 sys.stdout.flush()
-            time.sleep(0.1)
+            time.sleep(0.008)
 
     except Exception as e:
         print(e)

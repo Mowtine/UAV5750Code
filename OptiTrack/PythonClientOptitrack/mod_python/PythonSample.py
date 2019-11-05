@@ -23,14 +23,15 @@ from NatNetClient import NatNetClient
 # This is a callback function that gets connected to the NatNet client and called once per mocap frame.
 def receiveNewFrame( frameNumber, markerSetCount, unlabeledMarkersCount, rigidBodyCount, skeletonCount,
                     labeledMarkerCount, timecode, timecodeSub, timestamp, isRecording, trackedModelsChanged ):
-    print( "Received frame", frameNumber )
-
+#    print( "Received frame", frameNumber )
+    pass
 # This is a callback function that gets connected to the NatNet client. It is called once per rigid body per frame
 def receiveRigidBodyFrame( id, position, rotation ):
-    print( "Received frame for rigid body", id )
+#    print( "Received frame for rigid body", id )
     # This looks like tuples of 3 and 4 of floats
-    print( "Position:", position )
-    print( "Rotation:", rotation )
+    if id == 9:
+        print( "Position:", position )
+#        print( "Rotation:", rotation )
 
 # This will create a new NatNet client
 streamingClient = NatNetClient()

@@ -165,9 +165,9 @@ class Reader:
                 self.values = servo_pos[:7]
 
                 datawrite = self.dataWrite(pre, self.stream)
-                if self.log:
-                    self.log.write("%4d, %4d, %4d, %4d, %4d, %4d, %4d\n"%tuple(
-                        self.stream[:7]))
+                #if self.log:
+                #    self.log.write("%4d, %4d, %4d, %4d, %4d, %4d, %4d\n"%tuple(
+                #        self.stream[:7]))
                     #sys.stdout.write("%4d, %4d, %4d, %4d, %4d, %4d, %4d\r"%tuple(self.values))
                     #sys.stdout.flush()
 
