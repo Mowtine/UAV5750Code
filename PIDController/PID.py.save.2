@@ -56,14 +56,13 @@ class PID:
             ControlInput = [valuesrc[1],valuesrc[2],valuesrc[3],valuesrc[5]]
         else:
 #            print(valuesrc[2])
-            ControlInput = [valuesrc[1]-0.55,valuesrc[2]-0.55,valuesrc[3]-0.55,valuesrc[5]-0.1755]
-#            print(ControlInput[3])
+            ControlInput = [valuesrc[1]-0.55,valuesrc[2]-0.55,valuesrc[3]-0.55,valuesrc[5]-0.55]
+#            print(ControlInput[0])
 ##                print(position)
 ##        valuesrc = [X_target,Y_target,Z_target,Psi_target]
 ##        position = [X_room_frame,Y_room_frame,Z_room_frame]
 ##        eulerAngles = [Phi_inertial,Theta_inertial,Psi_inertial]
         dt,Position,PositionRatedt,Rotation,RotationRatedt,Euler,EulerRatedt = FilteredAverage.FilteredAverage(frames, position, rotation, eulerAngles)
-#        Euler = [x/2 for x in Euler]
         PositionRate = [x*self.SamplingFreq for x in PositionRatedt]
         RotationRate = [x*self.SamplingFreq for x in RotationRatedt]
         EulerRate = [x*self.SamplingFreq for x in EulerRatedt]
@@ -79,10 +78,8 @@ class PID:
         Y_Heading = numpy.cos(numpy.arctan2(Y_Vector,X_Vector)-Euler[2])*numpy.sqrt(X_Vector*X_Vector+Y_Vector*Y_Vector)
 #        print(eulerAngles[-1][1])
 #        print("{%4f}"%PositionRate[0])
-#        print(Euler[1])
-        X_HeadingRate = -numpy.cos(Euler[1])*PositionRate[0]+numpy.sin(Euler[1])*PositionRate[1]
-        Y_HeadingRate = -numpy.sin(Euler[1])*PositionRate[0]-numpy.cos(Euler[1])*PositionRate[1]
-#        print(PositionRate[2])
+        X_HeadingRate = numpy.cos(Euler[1])*PositionRate[0]+numpy.sin(Euler[1])*PositionRate[1]
+        Y_HeadingRate = numpy.sin(Euler[1])*PositionRate[0]-numpy.cos(Euler[1])*PositionRate[1]
         self.target = [0,0,ControlInput[2],ControlInput[3]]
         self.sensor = [X_Heading,Y_Heading,Position[2],Euler[2],X_HeadingRate,Y_HeadingRate,PositionRate[2],EulerRate[2]]
 #        print("{%4f}"%Y_HeadingRate)
@@ -114,7 +111,7 @@ class PID:
         r_Sensor_Value = self.sensor[7]
 
         # Gain Values from Tuning UI
-        G = [x*dt*250 for x in self.gain[0:40]]
+        G = [x * dt * 50 for x in self.gain[0:40]]
 ##        G = self.gain[0:40]
 ##        print(self.gain[0:40])
         KP = G[0:8]
@@ -163,32 +160,32 @@ class PID:
        # Saturation
         if Aile_pin >= 1.0 :
             Aile_pin = 1.0
-        elif Aile_pin <= 0.0 :
-            Aile_pin = 0.0
+        elif Aile_pin <= 0.1 :
+            Aile_pin = 0.1
 
         Elev_pin = u_Control + 0.55
 
         # Saturation
         if Elev_pin >= 1.0 :
            Elev_pin = 1.0
-        elif Elev_pin <= 0.0 :
-            Elev_pin = 0.0
+        elif Elev_pin <= 0.1 :
+            Elev_pin = 0.1
 
         Rudd_pin = r_Control + 0.55
 
         # Saturation
         if Rudd_pin >= 1.0 :
             Rudd_pin = 1.0
-        elif Rudd_pin <= 0.0 :
-            Rudd_pin = 0.0
+        elif Rudd_pin <= 0.1 :
+            Rudd_pin = 0.1
 
-        Coll_pin = w_Control+0.1755
+        Coll_pin = w_Control+0.55
 
         # Saturation
         if Coll_pin >= 1.0 :
             Coll_pin = 1.0
-        elif Coll_pin <= 0.0 :
-            Coll_pin = 0.0
+        elif Coll_pin <= 0.1 :
+            Coll_pin = 0.1
 
 ##        T_Control = self.T.update(Coll_pin,KP[8],KI[8],KD[8],Imax[8],Imin[8])
 ##        Thro_pin = T_Control/1000
@@ -210,8 +207,7 @@ class PID:
             vbarVal = valuesrc
         else:
 ##            print([valuesrc[0],valuesrc[1],valuesrc[2],valuesrc[3],valuesrc[4],Coll_pin])
-#            vbarVal = [valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin]
-            vbarVal = [valuesrc[0],valuesrc[1],valuesrc[2],valuesrc[3],valuesrc[4],Coll_pin]
+            vbarVal = [valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin]
 
 ##        sys.stdout.write(
 ##            "%4d, %4d, %4d, %4d, %4d, %4d--------------%4d, %4d, %4d, %4d, %4d, %4d\r"%tuple(

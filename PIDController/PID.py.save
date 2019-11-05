@@ -1,4 +1,3 @@
-
 import PID_Controller
 import socket
 import pickle
@@ -8,13 +7,10 @@ import numpy
 
 class PID:
     # Discrete PID control
-    def __init__(self, target, frames, position, rotation, eulerAngles, gain, Size = [1,1,2*numpy.pi,1],SamplingFreq = 250):
+    def __init__(self, target, frames, position, rotation, eulerAngles, gain, Size = [1,1,2*numpy.pi,1]):
         self.Size = Size
-        self.SamplingFreq = SamplingFreq
-        dt,Position,PositionRatedt,Rotation,RotationRatedt,Euler,EulerRatedt = FilteredAverage.FilteredAverage(frames, position, rotation, eulerAngles)
-        PositionRate = [x*self.SamplingFreq for x in PositionRatedt]
-        RotationRate = [x*self.SamplingFreq for x in RotationRatedt]
-        EulerRate = [x*self.SamplingFreq for x in EulerRatedt]
+        dt,Position,PositionRate,Rotation,RotationRate,Euler,EulerRate = FilteredAverage.FilteredAverage(frames, position, rotation, eulerAngles)
+        
 ##        self.target = valuesrc
         self.sensor = [Position[0],Position[1],Position[2],Euler[2],PositionRate[0],PositionRate[1],PositionRate[2],EulerRate[2]]
         self.target = target
@@ -50,42 +46,29 @@ class PID:
     def run(self, valuesrc, frames, position, rotation, eulerAngles):
 
 ##        print(valuesrc)
-        if valuesrc[4] > 0.8:
+        if valuesrc[4] > 0.9:
             ControlInput = [valuesrc[1]*self.Size[0],valuesrc[2]*self.Size[1],valuesrc[3]*self.Size[2],valuesrc[5]*self.Size[3]]
-        elif valuesrc[4] < 0.2:
+        elif valuesrc[4] < 0.1:
             ControlInput = [valuesrc[1],valuesrc[2],valuesrc[3],valuesrc[5]]
         else:
-#            print(valuesrc[2])
-            ControlInput = [valuesrc[1]-0.55,valuesrc[2]-0.55,valuesrc[3]-0.55,valuesrc[5]-0.1755]
-#            print(ControlInput[3])
+            ControlInput = [valuesrc[1]-0.5,valuesrc[2]-0.5,valuesrc[3]-0.5,valuesrc[5]-0.5]
 ##                print(position)
 ##        valuesrc = [X_target,Y_target,Z_target,Psi_target]
 ##        position = [X_room_frame,Y_room_frame,Z_room_frame]
 ##        eulerAngles = [Phi_inertial,Theta_inertial,Psi_inertial]
-        dt,Position,PositionRatedt,Rotation,RotationRatedt,Euler,EulerRatedt = FilteredAverage.FilteredAverage(frames, position, rotation, eulerAngles)
-#        Euler = [x/2 for x in Euler]
-        PositionRate = [x*self.SamplingFreq for x in PositionRatedt]
-        RotationRate = [x*self.SamplingFreq for x in RotationRatedt]
-        EulerRate = [x*self.SamplingFreq for x in EulerRatedt]
-        if dt == 0:
-#           valuesrc[4] = 0
-#           ControlInput = [valuesrc[1],valuesrc[2],valuesrc[3],valuesrc[5]]
-            dt = 0.011
-
+        dt,Position,PositionRate,Rotation,RotationRate,Euler,EulerRate = FilteredAverage.FilteredAverage(frames, position, rotation, eulerAngles)
+	if dt == 0:
+		valuesrc[4] = 0
+	
 ##        print([valuesrc,Position])
         X_Vector = ControlInput[0] - Position[0]
         Y_Vector = ControlInput[1] - Position[1]
         X_Heading = numpy.sin(numpy.arctan2(Y_Vector,X_Vector)-Euler[2])*numpy.sqrt(X_Vector*X_Vector+Y_Vector*Y_Vector)
         Y_Heading = numpy.cos(numpy.arctan2(Y_Vector,X_Vector)-Euler[2])*numpy.sqrt(X_Vector*X_Vector+Y_Vector*Y_Vector)
-#        print(eulerAngles[-1][1])
-#        print("{%4f}"%PositionRate[0])
-#        print(Euler[1])
-        X_HeadingRate = -numpy.cos(Euler[1])*PositionRate[0]+numpy.sin(Euler[1])*PositionRate[1]
-        Y_HeadingRate = -numpy.sin(Euler[1])*PositionRate[0]-numpy.cos(Euler[1])*PositionRate[1]
-#        print(PositionRate[2])
+        X_HeadingRate = numpy.sin(numpy.arctan2(PositionRate[1],PositionRate[0])-Euler[2])*numpy.sqrt(PositionRate[1]*PositionRate[1]+PositionRate[0]*PositionRate[0])
+        Y_HeadingRate = numpy.cos(numpy.arctan2(PositionRate[1],PositionRate[0])-Euler[2])*numpy.sqrt(PositionRate[1]*PositionRate[1]+PositionRate[0]*PositionRate[0])
         self.target = [0,0,ControlInput[2],ControlInput[3]]
         self.sensor = [X_Heading,Y_Heading,Position[2],Euler[2],X_HeadingRate,Y_HeadingRate,PositionRate[2],EulerRate[2]]
-#        print("{%4f}"%Y_HeadingRate)
 
         # Target Values and Sensor Values from Communication
         X_Target_Value = self.target[0]
@@ -114,7 +97,7 @@ class PID:
         r_Sensor_Value = self.sensor[7]
 
         # Gain Values from Tuning UI
-        G = [x*dt*250 for x in self.gain[0:40]]
+        G = [x * dt*5 for x in self.gain[0:40]]
 ##        G = self.gain[0:40]
 ##        print(self.gain[0:40])
         KP = G[0:8]
@@ -136,12 +119,12 @@ class PID:
         w_Target_Value = self.Z.update(Z_Sensor_Value,KP[2],KI[2],KD[2],Imax[2],Imin[2])
         r_Target_Value = self.Psi.update(Psi_Sensor_Value,KP[3],KI[3],KD[3],Imax[3],Imin[3])
 
-        if valuesrc[4] > 0.8:
+        if valuesrc[4] > 0.9:
             self.u.setPoint(u_Target_Value)
             self.v.setPoint(v_Target_Value)
             self.w.setPoint(w_Target_Value)
             self.r.setPoint(r_Target_Value)
-        elif valuesrc[4] < 0.2:
+        elif valuesrc[4] < 0.1:
             self.u.setPoint(ControlInput[1])
             self.v.setPoint(ControlInput[0])
             self.w.setPoint(ControlInput[3])
@@ -158,7 +141,7 @@ class PID:
         w_Control = self.w.update(w_Sensor_Value,KP[6],KI[6],KD[6],Imax[6],Imin[6])
         r_Control = self.r.update(r_Sensor_Value,KP[7],KI[7],KD[7],Imax[7],Imin[7])
 
-        Aile_pin = v_Control + 0.55
+        Aile_pin = v_Control + 0.5
 
        # Saturation
         if Aile_pin >= 1.0 :
@@ -166,7 +149,7 @@ class PID:
         elif Aile_pin <= 0.0 :
             Aile_pin = 0.0
 
-        Elev_pin = u_Control + 0.55
+        Elev_pin = u_Control + 0.5
 
         # Saturation
         if Elev_pin >= 1.0 :
@@ -174,7 +157,7 @@ class PID:
         elif Elev_pin <= 0.0 :
             Elev_pin = 0.0
 
-        Rudd_pin = r_Control + 0.55
+        Rudd_pin = r_Control + 0.5
 
         # Saturation
         if Rudd_pin >= 1.0 :
@@ -182,7 +165,7 @@ class PID:
         elif Rudd_pin <= 0.0 :
             Rudd_pin = 0.0
 
-        Coll_pin = w_Control+0.1755
+        Coll_pin = w_Control
 
         # Saturation
         if Coll_pin >= 1.0 :
@@ -201,7 +184,7 @@ class PID:
 
         ## Thro_pin = 0.9
         
-#        print(Aile_pin)
+
         if valuesrc[4] > 0.9:
 ##            print([valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin])
             vbarVal = [valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin]
@@ -210,8 +193,7 @@ class PID:
             vbarVal = valuesrc
         else:
 ##            print([valuesrc[0],valuesrc[1],valuesrc[2],valuesrc[3],valuesrc[4],Coll_pin])
-#            vbarVal = [valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin]
-            vbarVal = [valuesrc[0],valuesrc[1],valuesrc[2],valuesrc[3],valuesrc[4],Coll_pin]
+            vbarVal = [valuesrc[0],Aile_pin,Elev_pin,Rudd_pin,valuesrc[4],Coll_pin]
 
 ##        sys.stdout.write(
 ##            "%4d, %4d, %4d, %4d, %4d, %4d--------------%4d, %4d, %4d, %4d, %4d, %4d\r"%tuple(

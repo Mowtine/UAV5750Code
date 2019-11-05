@@ -1,5 +1,5 @@
-from FindElementAverage import FindElementAverage
-from FindElementDerivative import FindElementDerivative
+from FindElementAverage import FindElementAverage, FindAngleAverage
+from FindElementDerivative import FindElementDerivative, FindAngleDerivative
 
 def FilteredAverage(frames, position, rotation, eulerAngles):
     # frames = [frameNo, systemtime, ischanged], position, rotation, eulerAngles = [theta, phi, psi]
