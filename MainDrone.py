@@ -1,5 +1,5 @@
 ### 5/11/2019  MainDrone.py ###
-# This is the main data handling function which controls all aspects of opperation. 
+# This is the main data handling function which controls all aspects of opperation.
 # The current version is ment for developer debugging, not for the final release.
 
 
@@ -13,15 +13,15 @@ import datetime
 import string
 import math
 
-# Unimplimented LED code. - It was removed because we could not fix the conflict between 
-# serial ports and RPi.GPIO the Raspberry pi GPIO library. 
+# Unimplimented LED code. - It was removed because we could not fix the conflict between
+# serial ports and RPi.GPIO the Raspberry pi GPIO library.
 #from LED import LED
 
 # Used to end the code
 running = True
 
 
-# Importing all other files. Filepaths can be changed depnding on folder structure. 
+# Importing all other files. Filepaths can be changed depnding on folder structure.
 try:
     sys.path.insert(1, sys.path[0] + "/OptiTrack/PythonClientOptitrack/mod_python")
 except:
@@ -36,7 +36,7 @@ except:
     print("Error adding RWC to path")
 
 
-# Check for all imports, if a section fails to import propperly throw an error for debugging. 
+# Check for all imports, if a section fails to import propperly throw an error for debugging.
 try:
     lastimp = "PID"
     import PID as PIDFile
@@ -46,15 +46,17 @@ try:
     import ReadWrite_Martin as RW
     lastimp = "Gain"
     import Gain as Gain
+    lastimp = "Waypoint"
+    import Waypoint as Waypoint
 except Exception as e:
     print("Error importing: " + lastimp)
     print(e)
     exit()
 
 
-# This is the Optitrack class for saving optitrack data. 
+# This is the Optitrack class for saving optitrack data.
 # It gives its functions to the NatNetClient's requested delegate variables
-# which get called every time a frame is recieved from the NatNetClient. 
+# which get called every time a frame is recieved from the NatNetClient.
 class Optitrack:
 
     # Initiate variables to use
@@ -90,8 +92,8 @@ class Optitrack:
     # This is a callback function that gets connected to the NatNet client and called once per mocap frame.
     def receiveNewFrame( self, frameNumber, markerSetCount, unlabeledMarkersCount, rigidBodyCount, skeletonCount,
                         labeledMarkerCount, timecode, timecodeSub, timestamp, isRecording, trackedModelsChanged ):
-        
-        # Append the frame number and current time for use in the PID controller. 
+
+        # Append the frame number and current time for use in the PID controller.
         self.frames.append([frameNumber, uptime(), trackedModelsChanged])
         self.inRecieve = True
 
@@ -126,7 +128,7 @@ class Optitrack:
                     self.position[-1]))
 
 
-# Function to convert between valuses recieved with the controller and 
+# Function to convert between valuses recieved with the controller and
 # values to insert into the PID and back. changing norm to T/F changes the direction.
 def NormRC(valuestochange, norm):
     returnedVals = [0,0,0,0,0,0,0]
@@ -155,11 +157,11 @@ def NormRC(valuestochange, norm):
 if __name__ == "__main__":
 
     threads = []
-    
+
     # Ask for Optitrack body number
     body = input("Enter body number for optitrack: ")
     MyDateTime = datetime.datetime.now()
-    
+
     # Create logfile to save data in
     date = str(MyDateTime.timestamp()).split(".")[0] + str(MyDateTime.timestamp()).split(".")[1]
     logfile = open("Logs" + date + ".csv","w+")
@@ -169,7 +171,7 @@ if __name__ == "__main__":
     #LED = LED()
     #threads.append(LED.run())
 
-    try: 
+    try:
         rcInputOutput = RW.Reader("RCcontrol", logfile)
         rcInputOutput.align_serial(rcInputOutput.ser)
     except Exception as e:
@@ -197,11 +199,18 @@ if __name__ == "__main__":
     # Get the IP address for the ground station
     groundIP = input("Enter ground station last digit: 10.0.0.")
 
-    #try:
-    #    gain = Gain.ReadGain('10.0.0.'+groundIP,5005) #designate ip address of ground station and port
-    #except:
-    #    gain = None
-    #    print("Failed to connect to ground station")
+    #classes to receive gain and waypoint data from the ground station
+    try:
+        Gains = Gain.ReadGain('10.0.0.'+groundIP,5005) #designate ip address of ground station and port
+    except:
+        Gains = None
+        print("Failed to connect to ground station")
+
+    try:
+        Waypoints = Waypoint.ReadWaypoint('10.0.0.'+groundIP,5006) #designate ip address of ground station and port
+    except:
+        Waypoints = None
+        print("Failed to connect to ground station")
 
     # Break before running threads
     go = input("Ready to run?")
@@ -216,13 +225,16 @@ if __name__ == "__main__":
         # This will run perpetually, and operate on a separate thread.
         threads.append(optiStreamingClient.run())
 
+        # run threads to receive gain and waypoint data from the ground station
+        threads.append(Gains.run())
+        threads.append(Wayponts.run())
+
 
         # Get initial values from optitrack function
         frames, position, rotation, eulerAngles =  states.GetValues()
 
-        gain = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        gain = [ x*10 for x in gain]
-        PID = PIDFile.PID(rcInputOutput.GetValues(), frames, position, rotation, eulerAngles, gain)
+
+        PID = PIDFile.PID(rcInputOutput.GetValues(), frames, position, rotation, eulerAngles, Gains.GetValues(),Waypoints.GetValues())
 
         # Uncomment if manual gain pinputs are required for debugging
         #gain = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0, 0.2, 0.2, 0.2, 0.2, 0.0, 0.0, 0.0, 0.0, 0.3, 0.3, 0.3, 0.3, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -230,7 +242,8 @@ if __name__ == "__main__":
         print(" THR   AIL   ELE   RUD   GER   PIT--------------THR   AIL   ELE   RUD   GER   PIT")
 
         # Get a desired target position
-        waypont = []
+        waypoint = []
+        waypoint2 = []
         waypos = 0
         error = 0.5
 
@@ -250,11 +263,13 @@ if __name__ == "__main__":
             ### Rate Mode ###
             elif valuesrc[4] > 800 :
 
-                # Get Optitrack values
+                # Get Optitrack values, gain values and waypoints
                 frames, position, rotation, eulerAngles =  states.GetValues()
+                gains = Gains.GetValues()
+                waypoints = Waypoints.GetValues()
 
-                # Send values from Optitrack and reciever and run a PID control loop. 
-                vbarVal1 = PID.run(NormRC(valuesrc, True), frames, position, rotation, eulerAngles)
+                # Send values from Optitrack and reciever and run a PID control loop.
+                vbarVal1 = PID.run(NormRC(valuesrc, True), frames, position, rotation, eulerAngles, gains, waypoints)
 
                 vbarVal2 = NormRC(vbarVal1, False)
 
@@ -267,14 +282,17 @@ if __name__ == "__main__":
 
             ### Positoin navigation mode ###
             else:
+                #receive gain values and waypoints
+                gains = Gains.GetValues()
+                waypoint = Waypoints.GetValues()
 
                 # If we do not have a waypoint designation
                 if len(waypoint) == 0:
                     # Get Optitrack values
                     frames, position, rotation, eulerAngles =  states.GetValues()
 
-                    # Send values from Optitrack and reciever and run a PID control loop. 
-                    vbarVal1 = PID.run(NormRC(valuesrc, True), frames, position, rotation, eulerAngles)
+                    # Send values from Optitrack and reciever and run a PID control loop.
+                    vbarVal1 = PID.run(NormRC(valuesrc, True), frames, position, rotation, eulerAngles, gains)
 
                     vbarVal2 = NormRC(vbarVal1, False)
 
@@ -293,8 +311,8 @@ if __name__ == "__main__":
                     if abs(position[-1][0]-waypoint[waypos][0]) < error and abs(position[-1][1]-waypoint[waypos][1]) < error and abs(position[-1][2]-waypoint[waypos][2]) < error:
                         if waypos < len(waypoint) - 1:
                             waypos += 1
-                    
-                    # Send waypoint values to the PID instead of the remote input. 
+
+                    # Send waypoint values to the PID instead of the remote input.
                     # The PID controller will use its second position control method if it detects the mode change
                     values = NormRC(valuesrc, True)
                     values[1] = waypoint[waypos][1]
@@ -313,9 +331,9 @@ if __name__ == "__main__":
                     sys.stdout.flush()
 
                     # Update waypoints and reset if they exist
-                    waypoints2 = waypoint# KOTA ADD WAYPOINT GET HERE
                     if waypoint2 != waypoint:
                         waypos = 0
+                    waypoints2 = waypoint
 
             # Sleep to allow other threads to run
             time.sleep(0.008)
