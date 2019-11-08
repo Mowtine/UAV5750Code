@@ -295,8 +295,7 @@ if __name__ == "__main__":
                             waypos += 1
                     
                     # Send waypoint values to the PID instead of the remote input. 
-                    # The PID controller will use its second position control method if it detects the 
-                    ### !!! Michel add how we sent the waypoints to the PID
+                    # The PID controller will use its second position control method if it detects the mode change
                     values = NormRC(valuesrc, True)
                     values[1] = waypoint[waypos][1]
                     values[2] = waypoint[waypos][0]
