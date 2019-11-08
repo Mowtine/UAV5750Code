@@ -228,13 +228,11 @@ if __name__ == "__main__":
         #gain = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0, 0.2, 0.2, 0.2, 0.2, 0.0, 0.0, 0.0, 0.0, 0.3, 0.3, 0.3, 0.3, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
         print(" THR   AIL   ELE   RUD   GER   PIT--------------THR   AIL   ELE   RUD   GER   PIT")
-        framesT = [[0,uptime(),True]]
-        positionT = [[0,0,0]]
-        rotationT = [[0,0,0,0]]
-        eulerT = [[0,0,0]]
-        logkeep = 100
-        prevtime = uptime()
 
+        # Get a desired target position
+        waypont = []
+        waypos = 0
+        error = 0.5
 
         while running:
             valuesrc = rcInputOutput.GetValues()
@@ -250,7 +248,7 @@ if __name__ == "__main__":
                 rcInputOutput.SaveValues(valuesrc)
 
             ### Rate Mode ###
-            elif valuesrc[4] > 800:
+            elif valuesrc[4] > 800 :
 
                 # Get Optitrack values
                 frames, position, rotation, eulerAngles =  states.GetValues()
@@ -266,6 +264,59 @@ if __name__ == "__main__":
                     "%4d, %4d, %4d, %4d, %4d, %4d--------------%4d, %4d, %4d, %4d, %4d, %4d\r"%tuple(
                     valuesrc[:6]+vbarVal2[:6]))
                 sys.stdout.flush()
+
+            ### Positoin navigation mode ###
+            else:
+
+                # If we do not have a waypoint designation
+                if len(waypoint) == 0:
+                    # Get Optitrack values
+                    frames, position, rotation, eulerAngles =  states.GetValues()
+
+                    # Send values from Optitrack and reciever and run a PID control loop. 
+                    vbarVal1 = PID.run(NormRC(valuesrc, True), frames, position, rotation, eulerAngles)
+
+                    vbarVal2 = NormRC(vbarVal1, False)
+
+                    # Save updated control values for writing to the copter
+                    rcInputOutput.SaveValues(vbarVal2)
+                    sys.stdout.write(
+                        "%4d, %4d, %4d, %4d, %4d, %4d--------------%4d, %4d, %4d, %4d, %4d, %4d\r"%tuple(
+                        valuesrc[:6]+vbarVal2[:6]))
+                    sys.stdout.flush()
+
+                else:
+
+                    # Get Optitrack values
+                    frames, position, rotation, eulerAngles =  states.GetValues()
+
+                    if abs(position[-1][0]-waypoint[waypos][0]) < error and abs(position[-1][1]-waypoint[waypos][1]) < error and abs(position[-1][2]-waypoint[waypos][2]) < error:
+                        if waypos < len(waypoint) - 1:
+                            waypos += 1
+                    
+                    # Send waypoint values to the PID instead of the remote input. 
+                    # The PID controller will use its second position control method if it detects the 
+                    ### !!! Michel add how we sent the waypoints to the PID
+                    values = NormRC(valuesrc, True)
+                    values[1] = waypoint[waypos][1]
+                    values[2] = waypoint[waypos][0]
+                    values[3] = waypoint[waypos][3]
+                    values[5] = waypoint[waypos][2]
+                    vbarVal1 = PID.run(values, frames, position, rotation, eulerAngles)
+
+                    vbarVal2 = NormRC(vbarVal1, False)
+
+                    # Save updated control values for writing to the copter
+                    rcInputOutput.SaveValues(vbarVal2)
+                    sys.stdout.write(
+                        "%4d, %4d, %4d, %4d, %4d, %4d--------------%4d, %4d, %4d, %4d, %4d, %4d\r"%tuple(
+                        valuesrc[:6]+vbarVal2[:6]))
+                    sys.stdout.flush()
+
+                    # Update waypoints and reset if they exist
+                    waypoints2 = waypoint# KOTA ADD WAYPOINT GET HERE
+                    if waypoint2 != waypoint:
+                        waypos = 0
 
             # Sleep to allow other threads to run
             time.sleep(0.008)
