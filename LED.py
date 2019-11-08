@@ -40,6 +40,7 @@ class LED:
             elif self.mode == 0: # Run forever | CHANGE TO 'WHILE IN MANUAL MODE' (------)
             	GPIO.output(8, GPIO.HIGH) # Turn on
 
+    # Thread to run for LED output
     def run(self):
         dataThread = threading.Thread( target = self.Lights, args = ("LED Thread", ))
         dataThread.start()

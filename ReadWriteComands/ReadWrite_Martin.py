@@ -107,7 +107,7 @@ class Reader:
         return newdata
 
 
-    ###KIELS Stuff
+    ### Functions for converting data back to DSM2 for writing
     def chpos2bytes(self, ch, pos): #TB for two byte
         val = (ch << 10) | pos
         #return bytes([(val >> 8) & 0xff, val & 0xff])
@@ -126,51 +126,39 @@ class Reader:
 
 
 
-
+    # Main function to read data from the reciever and write to the copter
     def ReaderThread(self, name):
-        #self.align_serial(self.ser)
         print('I am reading now and saving values to Values')
         data = None
         data_buf = None
         modeCh = 4
         try:
             while self.read:
-                ### TODO: this is where we will be repeating until we have enough
-                ### bites to read a signal and decode it
-                #with self._lock:
                 data_buf = self.ser.read(16)
-                #print(data_buf)
+
                 data = data_buf[2:]
                 pre = data_buf[:2]
-                #print(data)
+
+                # Unpack the data ans save it in servo_position
                 for i in range(7):
-                    #print(data[2*i:2*i+2])
+
                     ch_id, s_pos = self.parse_channel_data(data[2*i:2*i+2])
                     if ch_id > 6:
                         ch_id = 6
-        	    #print("ch_id: " + str(ch_id) + " pos: " + str(s_pos))
+
                     self.servo_position[ch_id] = s_pos
-        	   # servo_chanel[i] = ch_id
 
-                #datawrite = convert(servo_position, data_buf)
-
-                ### if statement to check mode
-                #if self.servo_position[modeCh] < 350: #Manual Mode
                 servo_pos = self.servo_position
-                #elif self.servo_position[modeCh] > 500: #Autonomous
-                #  servo_pos = [1024 - x for x in self.servo_position]
-                #else:
-                #  servo_pos = [1024 - x for x in self.servo_position]
 
                 self.values = servo_pos[:7]
 
+                # Convert data into 16 byte format
                 datawrite = self.dataWrite(pre, self.stream)
-                #if self.log:
-                #    self.log.write("%4d, %4d, %4d, %4d, %4d, %4d, %4d\n"%tuple(
-                #        self.stream[:7]))
-                    #sys.stdout.write("%4d, %4d, %4d, %4d, %4d, %4d, %4d\r"%tuple(self.values))
-                    #sys.stdout.flush()
+                if self.log:
+                    self.log.write("%4d, %4d, %4d, %4d, %4d, %4d, %4d\n"%tuple(
+                        self.stream[:7]))
 
+                # Write our current data to the copter serial
                 self.ser.write(datawrite)
         except Exception as e:
             self.ser.close()
@@ -178,14 +166,10 @@ class Reader:
         finally:
             self.ser.close()
 
-                #stream here
-            #time.sleep(1)
-
     def SaveValues(self, listToSave):
         self.stream = listToSave
 
     def GetValues(self):
-        ### TODO: this is where we need to read the controller values.
         return self.values
 
     def run(self):
@@ -198,6 +182,7 @@ class Reader:
     def Stop(self):
         self.read = False
 
+        # Main function for debugging. Not run in normal opperation. 
 def main():
     print("AUX1____Roll____Pitch____Yaw____AUX2____Throttle")
     data = None
